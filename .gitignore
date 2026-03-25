@@ -38,6 +38,7 @@ data/
 # Generated docs (users only need README.md)
 README.pdf
 neurodocks/
+CHANGELOG.md
 
 # OS
 .DS_Store
