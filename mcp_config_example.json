@@ -3,7 +3,7 @@
         "markdown-rag": {
             "command": "python",
             "args": [
-                "C:\\path\\to\\Markdown-RAG-MCP-Server\\server.py"
+                "C:\\path\\to\\OmniDocs-RAG\\server.py"
             ]
         }
     }
