@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🧠 Markdown RAG MCP Server</h1>
+  <h1>🧠 OmniDocs RAG</h1>
 
   <img src="image.jpg" alt="Markdown RAG MCP Server" width="100%">
   <br/><br/>
