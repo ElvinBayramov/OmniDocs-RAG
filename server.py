@@ -86,6 +86,8 @@ try:
 
     class _EmbeddingFunction:
         """ChromaDB-compatible embedding function with normalization + optional GPU."""
+        is_legacy = True  # Tell ChromaDB 0.6.0 to treat this as old-style callable
+        
         def name(self) -> str:
             return EMBED_MODEL
 
@@ -111,6 +113,7 @@ except Exception:
     embed_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
         model_name=EMBED_MODEL
     )
+    embed_fn.is_legacy = True  # safety patch
 
 collection = client.get_or_create_collection(
     name=COLLECTION_NAME,
@@ -1332,15 +1335,22 @@ def index_url(
         )
 
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
+        try:
+            asyncio.get_running_loop()
+            is_running = True
+        except RuntimeError:
+            is_running = False
+
+        if is_running:
             import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                future = pool.submit(asyncio.run, _run_index(
+            def _run_in_thread():
+                return asyncio.run(_run_index(
                     uri, collection, max_pages, max_depth,
                     stay_within_prefix, exclude_patterns,
                     use_sitemap, use_playwright,
                 ))
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                future = pool.submit(_run_in_thread)
                 return future.result()
         else:
             return asyncio.run(_run_index(

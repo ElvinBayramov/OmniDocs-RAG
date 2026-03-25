@@ -20,57 +20,53 @@ from urllib.robotparser import RobotFileParser
 logger = logging.getLogger(__name__)
 
 # ──────────────────────────────────────────────
-# Layer 1 — HTML → Markdown Parser
+# Layer 1 — HTML → Markdown Parser (Multi-Strategy)
 # ──────────────────────────────────────────────
 
-def _parse_html_page(html: str, page_url: str) -> tuple[str, list[str]]:
-    """
-    Parse an HTML page into clean Markdown + extract internal links.
-    
-    Returns:
-        (markdown_content, list_of_links)
-    """
+# Minimum characters for extracted content to be considered valid
+_MIN_CONTENT_LENGTH = 200
+
+
+def _extract_links(html: str) -> list[str]:
+    """Extract all internal links from raw HTML before any destructive parsing."""
     from bs4 import BeautifulSoup
-    import html2text
-
     soup = BeautifulSoup(html, "html.parser")
-
-    # Extract links BEFORE removing elements
     links = []
     for a in soup.find_all("a", href=True):
         href = a["href"].strip()
         if href and not href.startswith(("javascript:", "mailto:", "tel:", "#")):
             links.append(href)
+    return links
 
-    # Remove noise: navigation, ads, cookies, footers, scripts
-    noise_selectors = [
-        "nav", "footer", "header", "aside",
-        ".sidebar", ".navigation", ".breadcrumb", ".toc",
-        ".cookie-banner", ".cookie-consent", ".announcement-bar",
-        "[role='navigation']", "[role='banner']",
-        "script", "style", "noscript", "iframe",
-    ]
-    for selector in noise_selectors:
-        for el in soup.select(selector):
-            el.decompose()
 
-    # Find main content using standard selectors
-    main_content = (
-        soup.find("main") or
-        soup.find("article") or
-        soup.find(id="content") or
-        soup.find(id="main-content") or
-        soup.find(class_="content") or
-        soup.find(class_="documentation") or
-        soup.find(class_="docs-content") or
-        soup.find(class_="markdown-body") or
-        soup.find("body")
-    )
+def _build_header(html: str, page_url: str) -> str:
+    """Extract page title and build a Markdown header."""
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, "html.parser")
+    title_tag = soup.find("h1") or soup.find("title")
+    title = title_tag.get_text().strip() if title_tag else ""
+    if title:
+        return f"# {title}\n\nSource: {page_url}\n\n"
+    return f"Source: {page_url}\n\n"
 
-    if not main_content:
-        return "", links
 
-    # Convert to Markdown
+def _clean_markdown(text: str) -> str:
+    """Clean up excessive whitespace and artifacts from conversion."""
+    text = re.sub(r"\n{4,}", "\n\n\n", text)
+    text = re.sub(r"[ \t]+\n", "\n", text)
+    # Remove lines that are only whitespace/special chars
+    lines = text.split("\n")
+    cleaned = []
+    for line in lines:
+        stripped = re.sub(r"[|\\—\-\s#*`>]", "", line)
+        if stripped or not line.strip():
+            cleaned.append(line)
+    return "\n".join(cleaned)
+
+
+def _html_to_markdown(html_fragment: str) -> str:
+    """Convert an HTML fragment to Markdown using html2text."""
+    import html2text
     converter = html2text.HTML2Text()
     converter.ignore_images = True
     converter.body_width = 0          # no line wrapping
@@ -78,19 +74,185 @@ def _parse_html_page(html: str, page_url: str) -> tuple[str, list[str]]:
     converter.ignore_links = False    # keep inline links
     converter.protect_links = True
     converter.wrap_links = False
+    return converter.handle(html_fragment)
 
-    # Build header with title and source URL
-    title_tag = soup.find("h1") or soup.find("title")
-    title = title_tag.get_text().strip() if title_tag else ""
-    header = f"# {title}\n\nSource: {page_url}\n\n" if title else f"Source: {page_url}\n\n"
 
-    md_content = converter.handle(str(main_content))
+# ── Strategy 1: Trafilatura (ML-based, works on ANY site) ──
+
+def _extract_with_trafilatura(html: str) -> str:
+    """
+    Use Trafilatura for intelligent main-content extraction.
+    Trafilatura uses ML heuristics to identify the main content area
+    regardless of DOM structure — works perfectly with React SPAs,
+    custom CMSes, and any non-standard HTML.
+    """
+    try:
+        import trafilatura
+        result = trafilatura.extract(
+            html,
+            include_comments=False,
+            include_tables=True,
+            include_links=True,
+            include_formatting=True,   # preserve **bold**, *italic*, etc.
+            favor_recall=True,         # prefer more content over precision
+            output_format="txt",       # clean text output
+        )
+        return result or ""
+    except ImportError:
+        return ""
+    except Exception as e:
+        logger.debug(f"Trafilatura extraction failed: {e}")
+        return ""
+
+
+# ── Strategy 2: BeautifulSoup with expanded selectors ──
+
+def _extract_with_beautifulsoup(html: str) -> str:
+    """
+    Traditional CSS-selector-based extraction with an expanded list
+    of known content containers used by popular frameworks.
+    """
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, "html.parser")
+
+    # Remove noise elements
+    noise_selectors = [
+        "nav", "footer", "header", "aside",
+        ".sidebar", ".navigation", ".breadcrumb", ".toc",
+        ".cookie-banner", ".cookie-consent", ".announcement-bar",
+        "[role='navigation']", "[role='banner']", "[role='complementary']",
+        "script", "style", "noscript", "iframe", "svg",
+    ]
+    for selector in noise_selectors:
+        for el in soup.select(selector):
+            el.decompose()
+
+    # Expanded content selectors covering more frameworks & CMS layouts
+    content_selectors = [
+        # Semantic HTML5
+        "main", "article",
+        # Standard IDs
+        "#content", "#main-content", "#main", "#app-content",
+        "#docs-content", "#page-content", "#primary",
+        # Standard classes
+        ".content", ".main-content", ".page-content",
+        ".documentation", ".docs-content", ".doc-content",
+        ".markdown-body", ".article-content", ".post-content",
+        ".entry-content", ".rich-text", ".prose",
+        # React/Vue/Angular root containers
+        "#root", "#app", "#__next", "#__nuxt",
+        "[role='main']",
+        # Gitbook, Docusaurus, MkDocs, ReadTheDocs
+        ".gitbook-root", ".theme-doc-markdown",
+        ".md-content", ".rst-content",
+    ]
+
+    main_content = None
+    for selector in content_selectors:
+        found = soup.select_one(selector)
+        if found:
+            text = found.get_text(strip=True)
+            if len(text) >= _MIN_CONTENT_LENGTH:
+                main_content = found
+                break
+
+    # Fallback to <body>
+    if not main_content:
+        body = soup.find("body")
+        if body and len(body.get_text(strip=True)) >= _MIN_CONTENT_LENGTH:
+            main_content = body
+
+    if not main_content:
+        return ""
+
+    return _html_to_markdown(str(main_content))
+
+
+# ── Strategy 3: Text Density Analysis (last resort) ──
+
+def _extract_by_text_density(html: str) -> str:
+    """
+    Last-resort extraction: find the DOM subtree with the highest
+    text density (text-to-tag ratio). This works on completely
+    non-standard layouts where no known selectors match.
+    """
+    from bs4 import BeautifulSoup, NavigableString
+    soup = BeautifulSoup(html, "html.parser")
+
+    # Remove scripts, styles and other non-content tags
+    for tag in soup.find_all(["script", "style", "noscript", "svg", "iframe"]):
+        tag.decompose()
+
+    # Score each block-level element by text density
+    block_tags = {"div", "section", "article", "main", "td", "li", "p", "span"}
+    best_node = None
+    best_score = 0
+
+    for element in soup.find_all(block_tags):
+        text = element.get_text(strip=True)
+        text_len = len(text)
+        if text_len < _MIN_CONTENT_LENGTH:
+            continue
+
+        # Count descendant tags (more tags = more noise)
+        tag_count = len(element.find_all()) + 1
+        # Text density = characters per tag
+        density = text_len / tag_count
+        # Bonus for elements with paragraphs or headings (likely content)
+        p_count = len(element.find_all(["p", "h1", "h2", "h3", "h4", "li"]))
+        score = density * (1 + p_count * 0.5)
+
+        if score > best_score:
+            best_score = score
+            best_node = element
+
+    if not best_node:
+        return ""
+
+    return _html_to_markdown(str(best_node))
+
+
+# ── Combined Parser ──
+
+def _parse_html_page(html: str, page_url: str) -> tuple[str, list[str]]:
+    """
+    Parse an HTML page into clean Markdown + extract internal links.
     
-    # Clean up excessive whitespace from conversion
-    md_content = re.sub(r"\n{4,}", "\n\n\n", md_content)
-    md_content = re.sub(r"[ \t]+\n", "\n", md_content)
+    Uses a 3-strategy pipeline:
+    1. Trafilatura (ML-based, handles ANY site including React SPAs)
+    2. BeautifulSoup with expanded selectors (traditional approach)
+    3. Text density analysis (last resort for completely unknown layouts)
+    
+    Returns:
+        (markdown_content, list_of_links)
+    """
+    # Extract links from the original HTML before any destructive parsing
+    links = _extract_links(html)
+    header = _build_header(html, page_url)
 
-    return header + md_content, links
+    # Strategy 1: Trafilatura (best for unknown/SPA sites)
+    content = _extract_with_trafilatura(html)
+    if content and len(content.strip()) >= _MIN_CONTENT_LENGTH:
+        logger.debug(f"Trafilatura extracted {len(content)} chars from {page_url}")
+        return header + content, links
+
+    # Strategy 2: BeautifulSoup with expanded selectors
+    content = _extract_with_beautifulsoup(html)
+    if content and len(content.strip()) >= _MIN_CONTENT_LENGTH:
+        content = _clean_markdown(content)
+        logger.debug(f"BeautifulSoup extracted {len(content)} chars from {page_url}")
+        return header + content, links
+
+    # Strategy 3: Text density analysis (last resort)
+    content = _extract_by_text_density(html)
+    if content and len(content.strip()) >= _MIN_CONTENT_LENGTH:
+        content = _clean_markdown(content)
+        logger.debug(f"Text density extracted {len(content)} chars from {page_url}")
+        return header + content, links
+
+    # Nothing worked — page is truly empty or too small
+    logger.debug(f"No content extracted from {page_url}")
+    return "", links
 
 
 # ──────────────────────────────────────────────
@@ -342,7 +504,12 @@ async def crawl_and_index(
 
 
 async def _fetch_with_playwright(url: str) -> str:
-    """Fetch a JS-rendered page using Playwright (optional dependency)."""
+    """Fetch a JS-rendered page using Playwright (optional dependency).
+    
+    Uses 'domcontentloaded' + explicit wait instead of 'networkidle'
+    because SPAs (React, Vue, Angular) never reach 'networkidle' —
+    they keep streaming analytics, websockets, and lazy-loaded assets.
+    """
     try:
         from playwright.async_api import async_playwright
     except ImportError:
@@ -356,7 +523,19 @@ async def _fetch_with_playwright(url: str) -> str:
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
         try:
-            await page.goto(url, wait_until="networkidle", timeout=15000)
+            # Step 1: Navigate and wait for DOM to be ready
+            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            # Step 2: Wait for JS frameworks to render content
+            # Most SPAs finish rendering within 3 seconds
+            await page.wait_for_timeout(3000)
+            # Step 3: Try to wait for the body to have actual text content
+            try:
+                await page.wait_for_function(
+                    "document.body.innerText.length > 200",
+                    timeout=5000,
+                )
+            except Exception:
+                pass  # some pages may just be small, continue anyway
             html = await page.content()
         finally:
             await browser.close()
