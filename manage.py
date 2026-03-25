@@ -46,8 +46,7 @@ def cmd_index(args):
 
 def cmd_index_url(args):
     import server
-    import asyncio
-    result = asyncio.run(server.index_url(uri=args.url, collection=args.collection or server.DEFAULT_COLLECTION))
+    result = server.index_url(uri=args.url, collection=args.collection or server.DEFAULT_COLLECTION)
     print(result)
 
 

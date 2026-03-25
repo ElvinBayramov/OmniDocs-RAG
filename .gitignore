@@ -21,6 +21,8 @@ env/
 test_out.txt
 test_out2.txt
 test_rag.py
+tests/
+.pytest_cache/
 run_test.bat
 GEMINI.md
 test_search.md
@@ -51,8 +53,16 @@ Thumbs.db
 
 # ──────────────────────────────
 # FILES TO COMMIT (public repo):
-#   server.py            ← main server
+#   server.py            ← main server orchestrator
+#   parsers.py           ← parsing and chunking
+#   search_engine.py     ← bm25 + cross-encoder
+#   store.py             ← chromadb and cache
+#   exceptions.py        ← custom errors
+#   crawler.py           ← web parsing
+#   watcher.py           ← file monitoring
+#   dashboard.py         ← UI server
 #   install.py           ← installer
+#   manage.py            ← cli tools
 #   requirements.txt     ← dependencies
 #   mcp_config_example.json ← config template
 #   README.md            ← documentation

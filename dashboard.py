@@ -16,6 +16,7 @@ Usage:
 import os
 import sys
 import json
+import asyncio
 import threading
 from pathlib import Path
 
@@ -33,6 +34,7 @@ except ImportError:
 
 # Import server functions (shared logic with MCP tools)
 import server
+import search_engine
 
 app = FastAPI(title="RAG Dashboard", docs_url=None, redoc_url=None)
 
@@ -51,7 +53,7 @@ async def serve_dashboard():
 
 
 @app.get("/api/status")
-async def api_status():
+def api_status():
     """System status: GPU, models, BM25, cross-encoder."""
     try:
         import torch
@@ -70,15 +72,15 @@ async def api_status():
         "rerank_model": server.RERANK_MODEL,
         "device": server.DEVICE,
         "gpu": gpu,
-        "bm25_loaded": server._bm25_index is not None,
-        "bm25_chunks": len(server._bm25_corpus) if server._bm25_corpus else 0,
-        "cross_encoder_loaded": server._cross_encoder is not None,
+        "bm25_loaded": search_engine._bm25_index is not None,
+        "bm25_chunks": len(search_engine._bm25_corpus) if search_engine._bm25_corpus else 0,
+        "cross_encoder_loaded": search_engine._cross_encoder is not None,
         "db_path": server.DB_PATH,
     }
 
 
 @app.get("/api/collections")
-async def api_collections():
+def api_collections():
     """List all collections with stats."""
     try:
         collections = server.client.list_collections()
@@ -113,7 +115,7 @@ async def api_collections():
 
 
 @app.get("/api/collections/{name}/files")
-async def api_collection_files(name: str):
+def api_collection_files(name: str):
     """List files in a specific collection."""
     try:
         col = server._get_collection(name)
@@ -150,10 +152,10 @@ async def api_index(request: Request):
     try:
         # Detect source type
         if source.startswith(("http://", "https://", "github://", "npm://", "pypi://")):
-            result = await server.index_url(uri=source, collection=collection)
+            result = await asyncio.to_thread(server.index_url, uri=source, collection=collection)
         else:
-            # Local path
-            result = server.index_documents(docs_path=source, collection=collection)
+            # Local path — heavy CPU+IO, run in threadpool
+            result = await asyncio.to_thread(server.index_documents, docs_path=source, collection=collection)
         return {"result": result}
     except Exception as e:
         import traceback
@@ -175,7 +177,9 @@ async def api_search(request: Request):
         return JSONResponse({"error": "query is required"}, 400)
 
     try:
-        result = server.search_docs(
+        # Heavy CPU: embedding generation + BM25 + cross-encoder reranking — run in threadpool
+        result = await asyncio.to_thread(
+            server.search_docs,
             query=query,
             n_results=n_results,
             category=category,
@@ -188,7 +192,7 @@ async def api_search(request: Request):
 
 
 @app.delete("/api/collections/{name}")
-async def api_delete_collection(name: str):
+def api_delete_collection(name: str):
     """Delete a collection."""
     try:
         result = server.delete_collection(name=name, confirm=True)
@@ -198,7 +202,7 @@ async def api_delete_collection(name: str):
 
 
 @app.delete("/api/sources/{filename}")
-async def api_remove_source(filename: str, collection: str = None):
+def api_remove_source(filename: str, collection: str = None):
     """Remove a file from the index."""
     col = collection or server.DEFAULT_COLLECTION
     try:
@@ -215,7 +219,8 @@ async def api_reindex(request: Request):
     docs_path = body.get("docs_path", server.DOCS_PATH)
     collection = body.get("collection", server.DEFAULT_COLLECTION)
     try:
-        result = server.reindex_collection(docs_path=docs_path, collection=collection)
+        # Heavy CPU+IO — run in threadpool
+        result = await asyncio.to_thread(server.reindex_collection, docs_path=docs_path, collection=collection)
         return {"result": result}
     except Exception as e:
         import traceback
@@ -267,7 +272,7 @@ async def api_browse(type: str = "folder"):
 
 
 @app.get("/api/gpu-check")
-async def api_gpu_check():
+def api_gpu_check():
     """Detailed GPU compatibility check."""
     info = {
         "torch_installed": False,
@@ -308,8 +313,6 @@ async def api_gpu_check():
 @app.post("/api/index-file")
 async def api_index_file(request: Request):
     """Index a single file directly (not the whole parent folder)."""
-    import hashlib
-    import re as _re
     body = await request.json()
     filepath = body.get("filepath", "").strip()
     collection = body.get("collection", server.DEFAULT_COLLECTION)
@@ -324,40 +327,14 @@ async def api_index_file(request: Request):
         return JSONResponse({"error": "Path must be a file, not a directory. Use /api/index for folders."}, 400)
 
     try:
-        raw = server._read_file_to_text(filepath)
-        if not raw:
-            return JSONResponse({"error": f"Could not read file or unsupported format: {path.suffix}"}, 400)
-
-        category = server._categorize_file(filepath, raw)
-        sections = server._extract_sections_smart(raw, filepath)
-
-        target_col = server._get_collection(collection)
-
-        # Remove old chunks for this file
-        old_data = target_col.get(where={"filename": path.name}, include=[])
-        if old_data["ids"]:
-            target_col.delete(ids=old_data["ids"])
-
-        ids, texts, metas = [], [], []
-        for sec in sections:
-            path_hash = hashlib.md5(filepath.encode()).hexdigest()[:6]
-            chunk_hash = hashlib.md5(sec["text"].encode()).hexdigest()[:10]
-            chunk_id = _re.sub(r"[^a-zA-Z0-9_]", "_", f"{path.stem}_{path_hash}__{chunk_hash}")
-            ids.append(chunk_id)
-            texts.append(sec["text"])
-            metas.append({
-                "source": sec["source"],
-                "filename": sec["filename"],
-                "heading": sec["heading"],
-                "parent_heading": sec["parent_heading"],
-                "category": category,
-                "word_count": sec["word_count"],
-            })
-
-        if ids:
-            target_col.add(ids=ids, documents=texts, metadatas=metas)
-
-        return {"result": f"Indexed {len(ids)} chunks from {path.name} into '{collection}'"}
+        from exceptions import OmniDocsError
+        try:
+            # Heavy CPU+IO — run in threadpool
+            chunk_count = await asyncio.to_thread(server.index_single_file, filepath, collection)
+        except OmniDocsError as e:
+            return JSONResponse({"error": str(e)}, 400)
+            
+        return {"result": f"Indexed {chunk_count} chunks from {path.name} into '{collection}'"}
 
     except Exception as e:
         import traceback
