@@ -140,8 +140,8 @@ flowchart TD
 ### 2. Install
 
 ```bash
-git clone https://github.com/ElvinBayramov/Markdown-RAG-MCP-Server.git
-cd Markdown-RAG-MCP-Server
+git clone https://github.com/ElvinBayramov/OmniDocs-RAG.git
+cd OmniDocs-RAG
 python install.py
 ```
 
@@ -162,7 +162,7 @@ Add to your IDE's MCP config (`mcp_config.json`):
   "mcpServers": {
     "markdown-rag": {
       "command": "python",
-      "args": ["C:\\path\\to\\Markdown-RAG-MCP-Server\\server.py"],
+      "args": ["C:\\path\\to\\OmniDocs-RAG\\server.py"],
       "env": {
         "RAG_DOCS_PATH": "C:\\path\\to\\your\\docs",
         "RAG_DEVICE": "cuda"
