@@ -81,7 +81,8 @@ def cmd_delete(args):
 def cmd_reindex(args):
     import server
     col = args.collection or server.DEFAULT_COLLECTION
-    result = server.reindex_collection(docs_path=server.DOCS_PATH, collection=col)
+    path = args.path or server.DOCS_PATH
+    result = server.reindex_collection(docs_path=path, collection=col)
     print(result)
 
 
@@ -130,6 +131,7 @@ def main():
     # reindex
     p = sub.add_parser("reindex", help="Force full reindex of a collection")
     p.add_argument("collection", nargs="?", default=None, help="Collection name")
+    p.add_argument("--path", default=None, help="Path to reindex (default: RAG_DOCS_PATH env var)")
 
     args = parser.parse_args()
     if not args.command:

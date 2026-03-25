@@ -88,6 +88,93 @@ def install_packages():
                 sys.exit(1)
 
 
+def try_install_torch_cuda():
+    print("\n[2.5/4] Checking for CUDA and installing PyTorch...")
+    try:
+        import torch
+        if torch.cuda.is_available():
+            print("  [OK] PyTorch with CUDA already installed.")
+            return
+        elif torch.backends.mps.is_available():
+            print("  [OK] PyTorch with MPS (macOS GPU) already installed.")
+            return
+        else:
+            print("  [OK] PyTorch installed (CPU version).")
+            return
+    except ImportError:
+        print("  PyTorch not found. Attempting installation...")
+
+    install_cuda = False
+    install_mps = False
+    torch_install_cmd = [sys.executable, "-m", "pip", "install", "torch", "--quiet"]
+
+    if platform.system() == "Windows":
+        try:
+            result = subprocess.run(["wmic", "path", "Win32_VideoController", "get", "Name"], capture_output=True, text=True, check=False)
+            if "NVIDIA" in result.stdout:
+                print("  NVIDIA GPU detected on Windows.")
+                install_cuda = True
+            else:
+                print("  NVIDIA GPU not detected on Windows.")
+        except FileNotFoundError:
+            print("  'wmic' command not found. Cannot reliably detect GPU on Windows.")
+    elif platform.system() == "Linux":
+        try:
+            result = subprocess.run(["nvidia-smi"], capture_output=True, text=True, check=False)
+            if result.returncode == 0:
+                print("  NVIDIA GPU detected on Linux.")
+                install_cuda = True
+            else:
+                print("  NVIDIA GPU not detected on Linux.")
+        except FileNotFoundError:
+            print("  'nvidia-smi' command not found. Cannot reliably detect GPU on Linux.")
+    elif platform.system() == "Darwin": # macOS
+        print("  macOS detected. Checking for MPS (Metal Performance Shaders) support.")
+        try:
+            # Check if PyTorch can use MPS
+            import torch
+            if torch.backends.mps.is_available():
+                install_mps = True
+                print("  MPS available. PyTorch will be installed with MPS support.")
+            else:
+                print("  MPS not available. PyTorch will be installed as CPU version.")
+        except ImportError:
+            print("  PyTorch not yet installed, will check MPS after installation.")
+        except Exception as e:
+            print(f"  Error checking MPS availability: {e}. Installing CPU version.")
+    else:
+        print(f"  Unknown OS '{platform.system()}'. Installing CPU version of PyTorch.")
+
+    if install_cuda:
+        print("  Attempting to install PyTorch with CUDA support...")
+        # This command installs the latest CUDA-enabled PyTorch.
+        # For specific CUDA versions, one might need to consult pytorch.org/get-started/locally/
+        torch_install_cmd = [sys.executable, "-m", "pip", "install", "torch", "torchvision", "torchaudio", "--index-url", "https://download.pytorch.org/whl/cu118", "--quiet"]
+    elif install_mps:
+        print("  Attempting to install PyTorch with MPS support for macOS...")
+        torch_install_cmd = [sys.executable, "-m", "pip", "install", "torch", "torchvision", "torchaudio", "--quiet"]
+    else:
+        print("  Attempting to install PyTorch (CPU version)...")
+        torch_install_cmd = [sys.executable, "-m", "pip", "install", "torch", "torchvision", "torchaudio", "--index-url", "https://download.pytorch.org/whl/cpu", "--quiet"]
+
+    result = subprocess.run(torch_install_cmd, capture_output=True, text=True)
+    if result.returncode == 0:
+        print("  [OK] PyTorch installed successfully.")
+        try:
+            import torch
+            if torch.cuda.is_available():
+                print("  [OK] CUDA detected by PyTorch after installation.")
+            elif torch.backends.mps.is_available():
+                print("  [OK] MPS detected by PyTorch after installation.")
+            else:
+                print("  [OK] PyTorch (CPU version) installed.")
+        except ImportError:
+            print("  [WARNING] PyTorch installation reported success, but import failed.")
+    else:
+        print(f"  [ERROR] Failed to install PyTorch:\n{result.stderr}")
+        print("  Please try installing PyTorch manually from https://pytorch.org/get-started/locally/")
+
+
 def download_models():
     print("\n[3/4] Downloading AI models (one-time, ~2.3GB)...")
     print("  This may take 5-10 minutes on first run.")
@@ -266,5 +353,6 @@ if __name__ == "__main__":
     print("\n[1/4] Checking Python version...")
     check_python()
     install_packages()
+    try_install_torch_cuda()
     download_models()
     auto_configure()

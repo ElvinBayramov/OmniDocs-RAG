@@ -782,6 +782,17 @@
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('tab-' + id).classList.add('active');
             btn.classList.add('active');
+
+            // If collections not loaded yet, load them first then populate
+            if (!collectionsCache.length && id !== 'dashboard') {
+                loadDashboard().then(() => {
+                    if (id === 'collections') populateColDropdowns();
+                    if (id === 'add-source') populateColDropdowns();
+                    if (id === 'search') populateColDropdowns();
+                });
+                return;
+            }
+
             if (id === 'collections') populateColDropdowns();
             if (id === 'add-source') populateColDropdowns();
             if (id === 'search') populateColDropdowns();
@@ -905,19 +916,34 @@
         async function browseSource() {
             const type = document.getElementById('source-type').value;
             if (type !== 'folder' && type !== 'file') return;
-            
+
             const btn = document.getElementById('browse-btn');
             const originalHtml = btn.innerHTML;
             btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;margin-right:4px;"></span>';
             btn.disabled = true;
-            
+
             const data = await api(`/api/browse?type=${type}`);
-            if (data && data.path) {
-                document.getElementById('source-input').value = data.path;
-            }
-            
+
             btn.innerHTML = originalHtml;
             btn.disabled = false;
+
+            if (!data) return;
+
+            if (data.supported === false) {
+                // Headless / WSL environment — hide browse button, show manual input hint
+                btn.style.display = 'none';
+                const input = document.getElementById('source-input');
+                input.placeholder = type === 'folder'
+                    ? 'Browse unavailable — type path manually, e.g. C:\\docs'
+                    : 'Browse unavailable — type file path manually';
+                input.focus();
+                toast('File browser not available. Enter path manually.', 'error');
+                return;
+            }
+
+            if (data.path) {
+                document.getElementById('source-input').value = data.path;
+            }
         }
 
         async function indexSource() {
@@ -998,13 +1024,19 @@
             toast('Deleted'); loadDashboard();
         }
         async function reindexCol(name) {
-            if (!confirm(`Reindex "${name}"?`)) return;
+            const path = prompt(
+                `Reindex collection "${name}"\nEnter path to scan (leave blank to use server default):`,
+                ''
+            );
+            if (path === null) return; // user cancelled
             toast('Reindexing...');
+            const body = { collection: name };
+            if (path.trim()) body.docs_path = path.trim();
             const data = await api('/api/reindex', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ collection: name })
+                body: JSON.stringify(body)
             });
-            toast(data?.result || 'Done'); loadDashboard();
+            toast(data?.result?.substring(0, 80) || 'Done'); loadDashboard();
         }
         async function removeFile(filename, collection) {
             if (!confirm(`Remove "${filename}"?`)) return;

@@ -225,37 +225,45 @@ async def api_reindex(request: Request):
 
 @app.get("/api/browse")
 async def api_browse(type: str = "folder"):
-    """Open a native OS file dialog to browse local filesystem."""
-    import tkinter as tk
-    from tkinter import filedialog
-    import asyncio
+    """Open a native OS file dialog. Returns empty path if not supported (headless/WSL)."""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+        import asyncio
 
-    def _open_dialog():
-        root = tk.Tk()
-        root.attributes("-topmost", True)
-        root.withdraw()
-        path = ""
-        try:
-            if type == "folder":
-                path = filedialog.askdirectory(parent=root, title="Select Directory to Index", mustexist=True)
-            else:
-                path = filedialog.askopenfilename(
-                    parent=root,
-                    title="Select File to Index",
-                    filetypes=[
-                        ("Supported Files", "*.md;*.txt;*.pdf;*.csv;*.docx;*.py;*.js;*.ts;*.html;*.json;*.yaml;*.rtf"),
-                        ("Markdown", "*.md"),
-                        ("Text", "*.txt"),
-                        ("PDF", "*.pdf"),
-                        ("All Files", "*.*")
-                    ]
-                )
-        finally:
-            root.destroy()
-        return path
+        def _open_dialog():
+            try:
+                root = tk.Tk()
+                root.attributes("-topmost", True)
+                root.withdraw()
+                path = ""
+                try:
+                    if type == "folder":
+                        path = filedialog.askdirectory(
+                            parent=root, title="Select Directory to Index", mustexist=True
+                        )
+                    else:
+                        path = filedialog.askopenfilename(
+                            parent=root,
+                            title="Select File to Index",
+                            filetypes=[
+                                ("Supported Files", "*.md;*.txt;*.pdf;*.csv;*.docx;*.py;*.js;*.ts;*.html;*.json;*.yaml"),
+                                ("All Files", "*.*"),
+                            ],
+                        )
+                finally:
+                    root.destroy()
+                return path
+            except Exception:
+                return ""
 
-    path = await asyncio.to_thread(_open_dialog)
-    return {"path": path}
+        path = await asyncio.to_thread(_open_dialog)
+        return {"path": path, "supported": True}
+
+    except ImportError:
+        return {"path": "", "supported": False, "error": "tkinter not available"}
+    except Exception as e:
+        return {"path": "", "supported": False, "error": str(e)}
 
 
 @app.get("/api/gpu-check")
@@ -299,20 +307,61 @@ async def api_gpu_check():
 
 @app.post("/api/index-file")
 async def api_index_file(request: Request):
-    """Index a single file."""
+    """Index a single file directly (not the whole parent folder)."""
+    import hashlib
+    import re as _re
     body = await request.json()
     filepath = body.get("filepath", "").strip()
     collection = body.get("collection", server.DEFAULT_COLLECTION)
+
     if not filepath:
         return JSONResponse({"error": "filepath is required"}, 400)
-    if not Path(filepath).exists():
+
+    path = Path(filepath)
+    if not path.exists():
         return JSONResponse({"error": f"File not found: {filepath}"}, 404)
+    if not path.is_file():
+        return JSONResponse({"error": "Path must be a file, not a directory. Use /api/index for folders."}, 400)
+
     try:
-        # Use the parent dir but pass only this one file
-        parent = str(Path(filepath).parent)
-        result = server.index_documents(docs_path=parent, collection=collection)
-        return {"result": result}
+        raw = server._read_file_to_text(filepath)
+        if not raw:
+            return JSONResponse({"error": f"Could not read file or unsupported format: {path.suffix}"}, 400)
+
+        category = server._categorize_file(filepath, raw)
+        sections = server._extract_sections_smart(raw, filepath)
+
+        target_col = server._get_collection(collection)
+
+        # Remove old chunks for this file
+        old_data = target_col.get(where={"filename": path.name}, include=[])
+        if old_data["ids"]:
+            target_col.delete(ids=old_data["ids"])
+
+        ids, texts, metas = [], [], []
+        for sec in sections:
+            path_hash = hashlib.md5(filepath.encode()).hexdigest()[:6]
+            chunk_hash = hashlib.md5(sec["text"].encode()).hexdigest()[:10]
+            chunk_id = _re.sub(r"[^a-zA-Z0-9_]", "_", f"{path.stem}_{path_hash}__{chunk_hash}")
+            ids.append(chunk_id)
+            texts.append(sec["text"])
+            metas.append({
+                "source": sec["source"],
+                "filename": sec["filename"],
+                "heading": sec["heading"],
+                "parent_heading": sec["parent_heading"],
+                "category": category,
+                "word_count": sec["word_count"],
+            })
+
+        if ids:
+            target_col.add(ids=ids, documents=texts, metadatas=metas)
+
+        return {"result": f"Indexed {len(ids)} chunks from {path.name} into '{collection}'"}
+
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JSONResponse({"error": str(e)}, 500)
 
 
