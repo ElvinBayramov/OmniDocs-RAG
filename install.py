@@ -22,6 +22,11 @@ PACKAGES = [
     "html2text",
     "lxml",
     "trafilatura",
+    "pypdf",
+    "python-docx",
+    "openpyxl",
+    "python-pptx",
+    "watchdog",
 ]
 EMBED_MODEL = "BAAI/bge-m3"
 RERANK_MODEL = "BAAI/bge-reranker-v2-m3"

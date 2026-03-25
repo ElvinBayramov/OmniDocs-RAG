@@ -14,20 +14,16 @@ html2text>=2024.2
 lxml>=5.0
 trafilatura>=2.0
 
+# Binary document formats
+pypdf>=4.0
+python-docx>=1.1
+openpyxl>=3.1
+python-pptx>=0.6.23
+
+# File watcher (auto-reindex on file changes)
+watchdog>=4.0
+
 # Optional: GPU acceleration (pip install torch)
 # Set RAG_DEVICE=cuda to enable
 
 # Optional: JS-rendered sites (pip install playwright && playwright install chromium)
-
-# Optional: Binary document formats
-# pip install pypdf python-docx openpyxl python-pptx
-# Uncomment below to install automatically:
-# pypdf>=4.0
-# python-docx>=1.1
-# openpyxl>=3.1
-# python-pptx>=0.6.23
-
-# Optional: File watcher (auto-reindex on file changes)
-# pip install watchdog
-# Set RAG_WATCH_PATH and RAG_WATCH_COLLECTION env vars to activate
-# watchdog>=4.0
