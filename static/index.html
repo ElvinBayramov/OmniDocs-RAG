@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Dashboard</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #0f172a;
+            --text: #e2e8f0;
+            --text-dim: #94a3b8;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --border: #334155;
+            --radius: 10px;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        [data-theme="light"] {
+            --bg: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --text: #1e293b;
+            --text-dim: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 28px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-card);
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .header h1 span {
+            color: var(--accent);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text);
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            border-color: var(--accent);
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .lang-select {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 5px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .device-badge {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            padding: 4px 10px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+        }
+
+        /* Nav */
+        .nav {
+            display: flex;
+            gap: 0;
+            padding: 0 28px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            padding: 12px 18px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .nav-btn:hover {
+            color: var(--text);
+        }
+
+        .nav-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* Main */
+        .main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px 28px;
+        }
+
+        .tab {
+            display: none;
+        }
+
+        .tab.active {
+            display: block;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        /* Cards */
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px;
+            box-shadow: var(--shadow);
+            transition: border-color 0.2s;
+        }
+
+        .card:hover {
+            border-color: var(--accent);
+        }
+
+        .card-label {
+            color: var(--text-dim);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+
+        .card-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+
+        .card-sub {
+            color: var(--text-dim);
+            font-size: 0.78rem;
+            margin-top: 3px;
+        }
+
+        .dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .dot-green {
+            background: var(--success);
+        }
+
+        .dot-yellow {
+            background: var(--warning);
+        }
+
+        .dot-red {
+            background: var(--danger);
+        }
+
+        /* Tables */
+        .table-wrap {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px 14px;
+            color: var(--text-dim);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-input);
+        }
+
+        td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+
+        tr:last-child td {
+            border: none;
+        }
+
+        tr:hover td {
+            background: var(--bg-input);
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-group label {
+            display: block;
+            color: var(--text-dim);
+            font-size: 0.82rem;
+            margin-bottom: 5px;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            background: var(--bg-input);
+            color: var(--text);
+            font-size: 0.87rem;
+            transition: border-color 0.2s;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 9px 18px;
+            border: none;
+            border-radius: 7px;
+            font-size: 0.87rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            opacity: 0.9;
+        }
+
+        .btn-outline {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.78rem;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Results */
+        .result-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 18px;
+            margin-bottom: 10px;
+            box-shadow: var(--shadow);
+        }
+
+        .result-content {
+            font-size: 0.87rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+
+        /* GPU Panel */
+        .gpu-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .gpu-panel .gpu-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .gpu-panel .gpu-item label {
+            color: var(--text-dim);
+            font-size: 0.78rem;
+        }
+
+        .gpu-panel .gpu-item .val {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .gpu-hint {
+            margin-top: 12px;
+            padding: 10px 14px;
+            background: var(--bg-input);
+            border-radius: 7px;
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            border-left: 3px solid var(--warning);
+        }
+
+        .gpu-hint code {
+            background: var(--bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        /* Misc */
+        .section-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 14px;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 32px;
+            color: var(--text-dim);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 18px;
+            border-radius: 7px;
+            color: #fff;
+            font-size: 0.87rem;
+            animation: slideUp 0.3s ease;
+            z-index: 1000;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+        }
+
+        .toast-success {
+            background: var(--success);
+        }
+
+        .toast-error {
+            background: var(--danger);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .mb {
+            margin-bottom: 14px;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .row>* {
+            flex: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>🧠 <span>RAG</span> Dashboard</h1>
+        <div class="header-right">
+            <span class="device-badge" id="device-badge"></span>
+            <select class="lang-select" id="lang-select" onchange="setLang(this.value)">
+                <option value="en">🇬🇧 English</option>
+                <option value="ru">🇷🇺 Русский</option>
+                <option value="zh">🇨🇳 中文</option>
+                <option value="ja">🇯🇵 日本語</option>
+                <option value="ko">🇰🇷 한국어</option>
+                <option value="es">🇪🇸 Español</option>
+                <option value="de">🇩🇪 Deutsch</option>
+                <option value="fr">🇫🇷 Français</option>
+            </select>
+            <button class="icon-btn" onclick="toggleTheme()" title="Toggle theme" id="theme-btn">🌙</button>
+        </div>
+    </div>
+
+    <div class="nav" id="nav-bar">
+        <button class="nav-btn active" data-tab="dashboard" onclick="showTab('dashboard',this)">📊 <span
+                data-i18n="nav.dashboard">Dashboard</span></button>
+        <button class="nav-btn" data-tab="collections" onclick="showTab('collections',this)">📁 <span
+                data-i18n="nav.collections">Collections</span></button>
+        <button class="nav-btn" data-tab="add-source" onclick="showTab('add-source',this)">➕ <span
+                data-i18n="nav.add">Add Source</span></button>
+        <button class="nav-btn" data-tab="search" onclick="showTab('search',this)">🔍 <span
+                data-i18n="nav.search">Search</span></button>
+        <button class="nav-btn" data-tab="gpu" onclick="showTab('gpu',this)">⚡ GPU</button>
+    </div>
+
+    <div class="main">
+        <!-- ═══ DASHBOARD TAB ═══ -->
+        <div class="tab active" id="tab-dashboard">
+            <div class="cards" id="status-cards"></div>
+            <div class="section-title" data-i18n="dashboard.overview">Collections Overview</div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-i18n="col.name">Collection</th>
+                            <th data-i18n="col.chunks">Chunks</th>
+                            <th data-i18n="col.files">Files</th>
+                            <th data-i18n="col.categories">Categories</th>
+                            <th data-i18n="col.actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cols-body">
+                        <tr>
+                            <td colspan="5" class="empty">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ═══ COLLECTIONS TAB ═══ -->
+        <div class="tab" id="tab-collections">
+            <div class="flex-between mb">
+                <div class="section-title" style="margin:0" data-i18n="collections.files">Collection Files</div>
+                <select id="col-select" onchange="loadFiles()" style="width:auto;min-width:220px;"></select>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-i18n="file.name">Filename</th>
+                            <th data-i18n="file.cat">Category</th>
+                            <th data-i18n="col.chunks">Chunks</th>
+                            <th data-i18n="file.words">Words</th>
+                            <th data-i18n="col.actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="files-body">
+                        <tr>
+                            <td colspan="5" class="empty" data-i18n="collections.select">Select a collection</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ═══ ADD SOURCE TAB ═══ -->
+        <div class="tab" id="tab-add-source">
+            <div class="card" style="max-width:640px;">
+                <div class="section-title" data-i18n="add.title">Add Source</div>
+                <div class="form-group">
+                    <label data-i18n="add.collection">Target Collection</label>
+                    <input type="text" id="add-col-select" list="add-col-list" placeholder="Enter new or select existing collection" autocomplete="off" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text);">
+                    <datalist id="add-col-list"></datalist>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="add.type">Source Type</label>
+                    <select id="source-type" onchange="updateSourceUI()">
+                        <option value="folder">📁 Local Folder</option>
+                        <option value="file">📄 Single File</option>
+                        <option value="url">🌐 Website URL</option>
+                        <option value="github">🐙 GitHub Repository</option>
+                        <option value="npm">📦 npm Package</option>
+                        <option value="pypi">🐍 PyPI Package</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label data-i18n="add.source">Source</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="source-input" placeholder="C:\path\to\docs" style="flex: 1;">
+                        <button class="btn btn-outline" id="browse-btn" onclick="browseSource()" type="button" style="display: flex; gap: 5px; white-space: nowrap;">
+                            📂 <span data-i18n="add.browse">Browse</span>
+                        </button>
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="index-btn" onclick="indexSource()">
+                    ⚡ <span data-i18n="add.start">Start Indexing</span>
+                </button>
+                <div id="index-result"
+                    style="margin-top:14px; white-space:pre-wrap; font-size:0.82rem; color:var(--text-dim); max-height:200px; overflow-y:auto;">
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ SEARCH TAB ═══ -->
+        <div class="tab" id="tab-search">
+            <div class="card mb" style="max-width:640px;">
+                <div class="form-group">
+                    <label data-i18n="search.query">Search Query</label>
+                    <input type="text" id="search-query" placeholder="How does authentication work?"
+                        onkeydown="if(event.key==='Enter')doSearch()">
+                </div>
+                <div class="row">
+                    <div class="form-group">
+                        <label data-i18n="search.results">Results</label>
+                        <select id="search-n">
+                            <option>3</option>
+                            <option selected>5</option>
+                            <option>10</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="add.collection">Collection</label>
+                        <select id="search-col-select"></select>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="doSearch()">🔍 <span
+                        data-i18n="nav.search">Search</span></button>
+            </div>
+            <div id="search-results"></div>
+        </div>
+
+        <!-- ═══ GPU TAB ═══ -->
+        <div class="tab" id="tab-gpu">
+            <div class="gpu-panel" id="gpu-panel">
+                <div class="section-title">⚡ GPU Status</div>
+                <div id="gpu-content">
+                    <div class="empty"><span class="spinner"></span> Checking...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════
+        // i18n — 8 languages
+        // ═══════════════════════════════════════════════════
+        const I18N = {
+            en: {
+                'nav.dashboard': 'Dashboard', 'nav.collections': 'Collections', 'nav.add': 'Add Source', 'nav.search': 'Search',
+                'dashboard.overview': 'Collections Overview',
+                'col.name': 'Collection', 'col.chunks': 'Chunks', 'col.files': 'Files', 'col.categories': 'Categories', 'col.actions': 'Actions',
+                'collections.files': 'Collection Files', 'collections.select': 'Select a collection',
+                'file.name': 'Filename', 'file.cat': 'Category', 'file.words': 'Words',
+                'add.title': 'Add Source', 'add.collection': 'Target Collection', 'add.type': 'Source Type', 'add.source': 'Source', 'add.start': 'Start Indexing', 'add.browse': 'Browse',
+                'search.query': 'Search Query', 'search.results': 'Results',
+                'status.embed': 'Embedding', 'status.rerank': 'Reranker', 'status.bm25': 'BM25 Index', 'status.gpu': 'GPU',
+                'gpu.installed': 'PyTorch', 'gpu.cuda': 'CUDA', 'gpu.name': 'GPU Name', 'gpu.vram': 'VRAM', 'gpu.device': 'Active Device', 'gpu.ver': 'CUDA Version',
+            },
+            ru: {
+                'nav.dashboard': 'Панель', 'nav.collections': 'Коллекции', 'nav.add': 'Добавить', 'nav.search': 'Поиск',
+                'dashboard.overview': 'Обзор коллекций',
+                'col.name': 'Коллекция', 'col.chunks': 'Чанки', 'col.files': 'Файлы', 'col.categories': 'Категории', 'col.actions': 'Действия',
+                'collections.files': 'Файлы коллекции', 'collections.select': 'Выберите коллекцию',
+                'file.name': 'Имя файла', 'file.cat': 'Категория', 'file.words': 'Слова',
+                'add.title': 'Добавить источник', 'add.collection': 'Целевая коллекция', 'add.type': 'Тип источника', 'add.source': 'Источник', 'add.start': 'Начать индексацию', 'add.browse': 'Обзор',
+                'search.query': 'Поисковый запрос', 'search.results': 'Результаты',
+                'status.embed': 'Эмбеддинг', 'status.rerank': 'Реранкер', 'status.bm25': 'Индекс BM25', 'status.gpu': 'GPU',
+                'gpu.installed': 'PyTorch', 'gpu.cuda': 'CUDA', 'gpu.name': 'Видеокарта', 'gpu.vram': 'VRAM', 'gpu.device': 'Устройство', 'gpu.ver': 'Версия CUDA',
+            },
+            zh: {
+                'nav.dashboard': '仪表板', 'nav.collections': '集合', 'nav.add': '添加来源', 'nav.search': '搜索',
+                'dashboard.overview': '集合概览',
+                'col.name': '集合', 'col.chunks': '片段', 'col.files': '文件', 'col.categories': '分类', 'col.actions': '操作',
+                'collections.files': '集合文件', 'collections.select': '选择一个集合',
+                'file.name': '文件名', 'file.cat': '分类', 'file.words': '词数',
+                'add.title': '添加来源', 'add.collection': '目标集合', 'add.type': '来源类型', 'add.source': '来源', 'add.start': '开始索引', 'add.browse': '浏览',
+                'search.query': '搜索查询', 'search.results': '结果',
+                'status.embed': '嵌入模型', 'status.rerank': '重排模型', 'status.bm25': 'BM25索引', 'status.gpu': 'GPU',
+                'gpu.installed': 'PyTorch', 'gpu.cuda': 'CUDA', 'gpu.name': '显卡名称', 'gpu.vram': '显存', 'gpu.device': '当前设备', 'gpu.ver': 'CUDA版本',
+            },
+            ja: {
+                'nav.dashboard': 'ダッシュボード', 'nav.collections': 'コレクション', 'nav.add': 'ソース追加', 'nav.search': '検索',
+                'dashboard.overview': 'コレクション概要',
+                'col.name': 'コレクション', 'col.chunks': 'チャンク', 'col.files': 'ファイル', 'col.categories': 'カテゴリ', 'col.actions': '操作',
+                'collections.files': 'コレクションファイル', 'collections.select': 'コレクションを選択',
+                'file.name': 'ファイル名', 'file.cat': 'カテゴリ', 'file.words': '単語数',
+                'add.title': 'ソース追加', 'add.collection': '対象コレクション', 'add.type': 'ソースタイプ', 'add.source': 'ソース', 'add.start': 'インデックス開始', 'add.browse': '参照',
+                'search.query': '検索クエリ', 'search.results': '結果',
+                'status.embed': '埋め込み', 'status.rerank': 'リランカー', 'status.bm25': 'BM25インデックス', 'status.gpu': 'GPU',
+                'gpu.installed': 'PyTorch', 'gpu.cuda': 'CUDA', 'gpu.name': 'GPU名', 'gpu.vram': 'VRAM', 'gpu.device': 'デバイス', 'gpu.ver': 'CUDAバージョン',
+            },
+            ko: {
+                'nav.dashboard': '대시보드', 'nav.collections': '컬렉션', 'nav.add': '소스 추가', 'nav.search': '검색',
+                'dashboard.overview': '컬렉션 개요',
+                'col.name': '컬렉션', 'col.chunks': '청크', 'col.files': '파일', 'col.categories': '카테고리', 'col.actions': '작업',
+                'collections.files': '컬렉션 파일', 'collections.select': '컬렉션 선택',
+                'file.name': '파일명', 'file.cat': '카테고리', 'file.words': '단어수',
+                'add.title': '소스 추가', 'add.collection': '대상 컬렉션', 'add.type': '소스 유형', 'add.source': '소스', 'add.start': '인덱싱 시작', 'add.browse': '찾아보기',
+                'search.query': '검색어', 'search.results': '결과',
+                'status.embed': '임베딩', 'status.rerank': '리랭커', 'status.bm25': 'BM25 인덱스', 'status.gpu': 'GPU',
+                'gpu.installed': 'PyTorch', 'gpu.cuda': 'CUDA', 'gpu.name': 'GPU 이름', 'gpu.vram': 'VRAM', 'gpu.device': '장치', 'gpu.ver': 'CUDA 버전',
+            },
+            es: {
+                'nav.dashboard': 'Panel', 'nav.collections': 'Colecciones', 'nav.add': 'Añadir fuente', 'nav.search': 'Buscar',
+                'dashboard.overview': 'Resumen de colecciones',
+                'col.name': 'Colección', 'col.chunks': 'Fragmentos', 'col.files': 'Archivos', 'col.categories': 'Categorías', 'col.actions': 'Acciones',
+                'collections.files': 'Archivos de colección', 'collections.select': 'Selecciona una colección',
+                'file.name': 'Nombre', 'file.cat': 'Categoría', 'file.words': 'Palabras',
+                'add.title': 'Añadir fuente', 'add.collection': 'Colección destino', 'add.type': 'Tipo de fuente', 'add.source': 'Fuente', 'add.start': 'Iniciar indexación', 'add.browse': 'Examinar',
+                'search.query': 'Consulta de búsqueda', 'search.results': 'Resultados',
+                'status.embed': 'Embedding', 'status.rerank': 'Reranker', 'status.bm25': 'Índice BM25', 'status.gpu': 'GPU',
+                'gpu.installed': 'PyTorch', 'gpu.cuda': 'CUDA', 'gpu.name': 'Nombre GPU', 'gpu.vram': 'VRAM', 'gpu.device': 'Dispositivo', 'gpu.ver': 'Versión CUDA',
+            },
+            de: {
+                'nav.dashboard': 'Dashboard', 'nav.collections': 'Sammlungen', 'nav.add': 'Quelle hinzufügen', 'nav.search': 'Suche',
+                'dashboard.overview': 'Sammlungsübersicht',
+                'col.name': 'Sammlung', 'col.chunks': 'Chunks', 'col.files': 'Dateien', 'col.categories': 'Kategorien', 'col.actions': 'Aktionen',
+                'collections.files': 'Sammlungsdateien', 'collections.select': 'Sammlung auswählen',
+                'file.name': 'Dateiname', 'file.cat': 'Kategorie', 'file.words': 'Wörter',
+                'add.title': 'Quelle hinzufügen', 'add.collection': 'Zielsammlung', 'add.type': 'Quellentyp', 'add.source': 'Quelle', 'add.start': 'Indexierung starten', 'add.browse': 'Durchsuchen',
+                'search.query': 'Suchanfrage', 'search.results': 'Ergebnisse',
+                'status.embed': 'Embedding', 'status.rerank': 'Reranker', 'status.bm25': 'BM25 Index', 'status.gpu': 'GPU',
+                'gpu.installed': 'PyTorch', 'gpu.cuda': 'CUDA', 'gpu.name': 'GPU Name', 'gpu.vram': 'VRAM', 'gpu.device': 'Gerät', 'gpu.ver': 'CUDA Version',
+            },
+            fr: {
+                'nav.dashboard': 'Tableau de bord', 'nav.collections': 'Collections', 'nav.add': 'Ajouter une source', 'nav.search': 'Recherche',
+                'dashboard.overview': 'Aperçu des collections',
+                'col.name': 'Collection', 'col.chunks': 'Fragments', 'col.files': 'Fichiers', 'col.categories': 'Catégories', 'col.actions': 'Actions',
+                'collections.files': 'Fichiers de la collection', 'collections.select': 'Sélectionnez une collection',
+                'file.name': 'Nom du fichier', 'file.cat': 'Catégorie', 'file.words': 'Mots',
+                'add.title': 'Ajouter une source', 'add.collection': 'Collection cible', 'add.type': 'Type de source', 'add.source': 'Source', 'add.start': "Démarrer l'indexation", 'add.browse': 'Parcourir',
+                'search.query': 'Requête de recherche', 'search.results': 'Résultats',
+                'status.embed': 'Embedding', 'status.rerank': 'Reranker', 'status.bm25': 'Index BM25', 'status.gpu': 'GPU',
+                'gpu.installed': 'PyTorch', 'gpu.cuda': 'CUDA', 'gpu.name': 'Nom GPU', 'gpu.vram': 'VRAM', 'gpu.device': 'Appareil', 'gpu.ver': 'Version CUDA',
+            },
+        };
+
+        let currentLang = localStorage.getItem('rag-lang') || 'en';
+        let collectionsCache = [];
+
+        function t(key) { return (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || key; }
+
+        function setLang(lang) {
+            currentLang = lang;
+            localStorage.setItem('rag-lang', lang);
+            document.getElementById('lang-select').value = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                el.textContent = t(key);
+            });
+            // Refresh dynamic content
+            loadDashboard();
+        }
+
+        // ═══ Theme ═══
+        const savedTheme = localStorage.getItem('rag-theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        updateThemeBtn();
+        function toggleTheme() {
+            const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('rag-theme', next);
+            updateThemeBtn();
+        }
+        function updateThemeBtn() {
+            document.getElementById('theme-btn').textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
+        }
+
+        // ═══ Tabs ═══
+        function showTab(id, btn) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + id).classList.add('active');
+            btn.classList.add('active');
+            if (id === 'collections') populateColDropdowns();
+            if (id === 'add-source') populateColDropdowns();
+            if (id === 'search') populateColDropdowns();
+            if (id === 'gpu') loadGPU();
+        }
+
+        // ═══ Toast ═══
+        function toast(msg, type = 'success') {
+            const el = document.createElement('div');
+            el.className = `toast toast-${type}`;
+            el.textContent = msg;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        // ═══ API ═══
+        async function api(url, opts = {}) {
+            try { const r = await fetch(url, opts); return await r.json(); }
+            catch (e) { toast('Connection error', 'error'); return null; }
+        }
+
+        // ═══ Populate all collection dropdowns ═══
+        function populateColDropdowns() {
+            if (!collectionsCache.length) return;
+            const optionsHtml = collectionsCache.map(c =>
+                `<option value="${c.name}">${c.name} (${c.chunks} ${t('col.chunks').toLowerCase()})</option>`
+            ).join('');
+            
+            ['col-select', 'search-col-select'].forEach(id => {
+                const sel = document.getElementById(id);
+                if (!sel) return;
+                const prev = sel.value;
+                sel.innerHTML = optionsHtml;
+                if (prev && [...sel.options].find(o => o.value === prev)) sel.value = prev;
+            });
+            
+            const datalist = document.getElementById('add-col-list');
+            if (datalist) {
+                datalist.innerHTML = collectionsCache.map(c => `<option value="${c.name}"></option>`).join('');
+            }
+            
+            if (document.getElementById('tab-collections').classList.contains('active')) loadFiles();
+        }
+
+        // ═══ Dashboard ═══
+        async function loadDashboard() {
+            const status = await api('/api/status');
+            if (!status) return;
+
+            document.getElementById('device-badge').textContent =
+                status.device === 'cuda' ? `⚡ GPU: ${status.gpu.name}` : '💻 CPU';
+
+            const gpuDot = status.gpu.available ? 'dot-green' : 'dot-yellow';
+            const bm25Dot = status.bm25_loaded ? 'dot-green' : 'dot-red';
+            const ceDot = status.cross_encoder_loaded ? 'dot-green' : 'dot-yellow';
+
+            document.getElementById('status-cards').innerHTML = `
+        <div class="card"><div class="card-label">${t('status.embed')}</div>
+            <div class="card-value" style="font-size:0.95rem;word-break:break-all;">${status.embed_model}</div>
+            <div class="card-sub"><span class="dot ${gpuDot}"></span>${status.device.toUpperCase()}</div></div>
+        <div class="card"><div class="card-label">${t('status.rerank')}</div>
+            <div class="card-value" style="font-size:0.95rem;word-break:break-all;">${status.rerank_model}</div>
+            <div class="card-sub"><span class="dot ${ceDot}"></span>${status.cross_encoder_loaded ? 'Loaded' : 'Lazy'}</div></div>
+        <div class="card"><div class="card-label">${t('status.bm25')}</div>
+            <div class="card-value">${status.bm25_chunks.toLocaleString()}</div>
+            <div class="card-sub"><span class="dot ${bm25Dot}"></span>${status.bm25_loaded ? 'Active' : 'Not loaded'}</div></div>
+        <div class="card"><div class="card-label">${t('status.gpu')}</div>
+            <div class="card-value" style="font-size:0.95rem;">${status.gpu.available ? status.gpu.name : 'CPU'}</div>
+            <div class="card-sub">${status.gpu.available ? status.gpu.vram_used + '/' + status.gpu.vram_total + ' GB' : 'RAG_DEVICE=cuda'}</div></div>
+    `;
+
+            const cols = await api('/api/collections');
+            collectionsCache = cols || [];
+            const tbody = document.getElementById('cols-body');
+            if (!cols || !cols.length) {
+                tbody.innerHTML = `<tr><td colspan="5" class="empty">${t('collections.select')}</td></tr>`;
+            } else {
+                tbody.innerHTML = cols.map(c => `<tr>
+            <td><strong>${c.name}</strong></td><td>${c.chunks.toLocaleString()}</td>
+            <td>${c.files}</td><td>${Object.keys(c.categories).length}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="deleteCol('${c.name}')">🗑️</button>
+                <button class="btn btn-outline btn-sm" onclick="reindexCol('${c.name}')">🔄</button></td>
+        </tr>`).join('');
+            }
+            populateColDropdowns();
+        }
+
+        // ═══ Collection Files ═══
+        async function loadFiles() {
+            const name = document.getElementById('col-select').value;
+            if (!name) return;
+            const files = await api(`/api/collections/${encodeURIComponent(name)}/files`);
+            const tbody = document.getElementById('files-body');
+            if (!files || !files.length) {
+                tbody.innerHTML = `<tr><td colspan="5" class="empty">${t('collections.select')}</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = files.map(f => `<tr>
+        <td title="${f.source}">${f.filename}</td><td>${f.category}</td>
+        <td>${f.chunks}</td><td>${f.words.toLocaleString()}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="removeFile('${f.filename}','${name}')">🗑️</button></td>
+    </tr>`).join('');
+        }
+
+        // ═══ Add Source ═══
+        function updateSourceUI() {
+            const type = document.getElementById('source-type').value;
+            const input = document.getElementById('source-input');
+            const browseBtn = document.getElementById('browse-btn');
+            const ph = {
+                folder: 'C:\\path\\to\\docs', file: 'C:\\path\\to\\file.md', url: 'https://docs.python.org/3/',
+                github: 'github://owner/repo/path', npm: 'npm://package-name', pypi: 'pypi://package-name'
+            };
+            input.placeholder = ph[type] || '';
+            input.value = '';
+            
+            if (type === 'folder' || type === 'file') browseBtn.style.display = 'inline-flex';
+            else browseBtn.style.display = 'none';
+        }
+
+        async function browseSource() {
+            const type = document.getElementById('source-type').value;
+            if (type !== 'folder' && type !== 'file') return;
+            
+            const btn = document.getElementById('browse-btn');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;margin-right:4px;"></span>';
+            btn.disabled = true;
+            
+            const data = await api(`/api/browse?type=${type}`);
+            if (data && data.path) {
+                document.getElementById('source-input').value = data.path;
+            }
+            
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+
+        async function indexSource() {
+            const source = document.getElementById('source-input').value.trim();
+            const collection = document.getElementById('add-col-select').value;
+            const type = document.getElementById('source-type').value;
+            if (!source) { toast('Enter a source', 'error'); return; }
+
+            const btn = document.getElementById('index-btn');
+            const out = document.getElementById('index-result');
+            btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Indexing...'; out.textContent = '';
+
+            let data;
+            if (type === 'file') {
+                data = await api('/api/index-file', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filepath: source, collection })
+                });
+            } else {
+                data = await api('/api/index', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source, collection })
+                });
+            }
+
+            btn.disabled = false; btn.innerHTML = '⚡ ' + t('add.start');
+            if (data && data.result) { out.textContent = data.result; toast('Done!'); loadDashboard(); }
+            else { out.textContent = data?.error || 'Error'; toast('Failed', 'error'); }
+        }
+
+        // ═══ Search ═══
+        async function doSearch() {
+            const query = document.getElementById('search-query').value.trim();
+            if (!query) return;
+            const n = parseInt(document.getElementById('search-n').value);
+            const collection = document.getElementById('search-col-select').value;
+            const box = document.getElementById('search-results');
+            box.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+
+            const data = await api('/api/search', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, n_results: n, collection })
+            });
+
+            if (!data || !data.result) { box.innerHTML = '<div class="empty">No results.</div>'; return; }
+            box.innerHTML = `<div class="result-item"><div class="result-content">${escapeHtml(data.result)}</div></div>`;
+        }
+        function escapeHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        // ═══ GPU Check ═══
+        async function loadGPU() {
+            const box = document.getElementById('gpu-content');
+            box.innerHTML = '<div class="empty"><span class="spinner"></span> Checking...</div>';
+            const g = await api('/api/gpu-check');
+            if (!g) { box.innerHTML = '<div class="empty">Failed to check GPU.</div>'; return; }
+
+            const yes = (v) => v ? `<span class="dot dot-green"></span>Yes` : `<span class="dot dot-red"></span>No`;
+            box.innerHTML = `
+        <div class="gpu-grid">
+            <div class="gpu-item"><label>${t('gpu.installed')}</label><div class="val">${yes(g.torch_installed)}</div></div>
+            <div class="gpu-item"><label>${t('gpu.cuda')}</label><div class="val">${yes(g.cuda_available)}</div></div>
+            <div class="gpu-item"><label>${t('gpu.name')}</label><div class="val">${g.gpu_name || '—'}</div></div>
+            <div class="gpu-item"><label>${t('gpu.vram')}</label><div class="val">${g.vram_total_gb ? g.vram_used_gb + '/' + g.vram_total_gb + ' GB' : '—'}</div></div>
+            <div class="gpu-item"><label>${t('gpu.device')}</label><div class="val">${g.current_device.toUpperCase()}</div></div>
+            <div class="gpu-item"><label>${t('gpu.ver')}</label><div class="val">${g.cuda_version || '—'}</div></div>
+        </div>
+        <div class="gpu-hint">
+            <strong>${g.recommendation}</strong>
+            ${g.how_to_enable ? '<br><code>' + g.how_to_enable + '</code>' : ''}
+        </div>
+    `;
+        }
+
+        // ═══ Actions ═══
+        async function deleteCol(name) {
+            if (!confirm(`Delete "${name}"?`)) return;
+            await api(`/api/collections/${encodeURIComponent(name)}`, { method: 'DELETE' });
+            toast('Deleted'); loadDashboard();
+        }
+        async function reindexCol(name) {
+            if (!confirm(`Reindex "${name}"?`)) return;
+            toast('Reindexing...');
+            const data = await api('/api/reindex', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ collection: name })
+            });
+            toast(data?.result || 'Done'); loadDashboard();
+        }
+        async function removeFile(filename, collection) {
+            if (!confirm(`Remove "${filename}"?`)) return;
+            await api(`/api/sources/${encodeURIComponent(filename)}?collection=${encodeURIComponent(collection)}`, { method: 'DELETE' });
+            toast('Removed'); loadFiles();
+        }
+
+        // ═══ Init ═══
+        document.getElementById('lang-select').value = currentLang;
+        setLang(currentLang);
+        loadDashboard();
+    </script>
+</body>
+
+</html>

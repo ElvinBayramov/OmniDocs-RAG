@@ -15,9 +15,15 @@ PACKAGES = [
     "sentence-transformers",
     "fastmcp",
     "rank-bm25",
+    "fastapi",
+    "uvicorn",
+    "httpx",
+    "beautifulsoup4",
+    "html2text",
+    "lxml",
 ]
-EMBED_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
-RERANK_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+EMBED_MODEL = "BAAI/bge-m3"
+RERANK_MODEL = "BAAI/bge-reranker-v2-m3"
 
 # Known MCP config paths per IDE (Windows / macOS / Linux)
 CONFIG_LOCATIONS = {
@@ -50,10 +56,11 @@ def check_python():
 
 def install_packages():
     print("\n[2/4] Installing Python packages...")
-    for pkg in PACKAGES:
-        print(f"  Installing {pkg}...", end=" ", flush=True)
+    req_file = os.path.join(os.path.dirname(__file__), "requirements.txt")
+    if os.path.exists(req_file):
+        print("  Installing from requirements.txt... ", end="", flush=True)
         result = subprocess.run(
-            [sys.executable, "-m", "pip", "install", pkg, "--quiet"],
+            [sys.executable, "-m", "pip", "install", "-r", req_file, "--quiet"],
             capture_output=True, text=True
         )
         if result.returncode == 0:
@@ -61,21 +68,33 @@ def install_packages():
         else:
             print(f"FAILED\n{result.stderr}")
             sys.exit(1)
+    else:
+        for pkg in PACKAGES:
+            print(f"  Installing {pkg}...", end=" ", flush=True)
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", pkg, "--quiet"],
+                capture_output=True, text=True
+            )
+            if result.returncode == 0:
+                print("OK")
+            else:
+                print(f"FAILED\n{result.stderr}")
+                sys.exit(1)
 
 
 def download_models():
-    print("\n[3/4] Downloading AI models (one-time, ~520MB)...")
-    print("  This may take 3-5 minutes on first run.")
+    print("\n[3/4] Downloading AI models (one-time, ~2.3GB)...")
+    print("  This may take 5-10 minutes on first run.")
 
     try:
         os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "0"
         from sentence_transformers import SentenceTransformer, CrossEncoder
 
-        print(f"\n  [1/2] {EMBED_MODEL} (~120MB)...", flush=True)
+        print(f"\n  [1/2] {EMBED_MODEL} (~1.1GB)...", flush=True)
         SentenceTransformer(EMBED_MODEL)
         print("        Done.")
 
-        print(f"\n  [2/2] {RERANK_MODEL} (~80MB)...", flush=True)
+        print(f"\n  [2/2] {RERANK_MODEL} (~1.1GB)...", flush=True)
         CrossEncoder(RERANK_MODEL)
         print("        Done.")
 

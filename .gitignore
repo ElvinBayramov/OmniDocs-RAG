@@ -22,9 +22,22 @@ test_out.txt
 test_out2.txt
 test_rag.py
 run_test.bat
+GEMINI.md
+test_search.md
+test_server.py
+diff_output.txt
+error_trace.txt
+latest_diff.txt
+result.txt
+test_docs/
+
+# Local data cache
+data/
+.env
 
 # Generated docs (users only need README.md)
 README.pdf
+neurodocks/
 
 # OS
 .DS_Store
@@ -33,6 +46,7 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+.agent/
 
 # ──────────────────────────────
 # FILES TO COMMIT (public repo):
