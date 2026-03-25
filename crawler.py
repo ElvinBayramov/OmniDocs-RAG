@@ -95,7 +95,7 @@ def _extract_with_trafilatura(html: str) -> str:
             include_links=True,
             include_formatting=True,   # preserve **bold**, *italic*, etc.
             favor_recall=True,         # prefer more content over precision
-            output_format="txt",       # clean text output
+            output_format="markdown",  # structured output with headings & formatting
         )
         return result or ""
     except ImportError:
