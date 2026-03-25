@@ -1,15 +1,15 @@
-chromadb>=0.6.0
-sentence-transformers>=3.0.0
-fastmcp>=2.0.0
+chromadb>=1.5.5
+sentence-transformers>=5.0.0
+fastmcp>=3.1.0
 rank-bm25>=0.2.2
 
 # Web Dashboard
-fastapi>=0.115
-uvicorn>=0.30
+fastapi>=0.135.0
+uvicorn>=0.42.0
 
-# Web crawling & HTML parsing (Phase 4)
-httpx>=0.27
-beautifulsoup4>=4.12
+# Web crawling & HTML parsing
+httpx>=0.28.0
+beautifulsoup4>=4.12.0
 html2text>=2024.2
 lxml>=5.0
 trafilatura>=2.0

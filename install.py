@@ -21,6 +21,7 @@ PACKAGES = [
     "beautifulsoup4",
     "html2text",
     "lxml",
+    "trafilatura",
 ]
 EMBED_MODEL = "BAAI/bge-m3"
 RERANK_MODEL = "BAAI/bge-reranker-v2-m3"
